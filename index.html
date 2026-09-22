@@ -642,7 +642,7 @@ renderGeometry();renderHistory();updateCalc();renderChapter('real');renderModeCa
    <label class="setting"><span>Button size</span><select id="buttonSize"><option value="normal">Normal</option><option value="large">Large</option><option value="compact">Compact</option></select></label>
    <label class="setting"><span>Answer size</span><select id="answerSize"><option value="normal">Normal</option><option value="large">Large</option><option value="small">Small</option></select></label>
   </div>
-  <div class="settings-actions"><button class="tool" id="resetSettings">Reset</button><button class="tool active" id="doneSettings">Done</button></div>
+  <div class="settings-actions"><button class="tool" id="resetSettings">Reset</button><button class="tool" id="installAppBtn">📱 Install App</button><button class="tool active" id="doneSettings">Done</button></div>
  </div>
 </div>
 
@@ -769,6 +769,53 @@ function addHelpEntry(){
   const items=helpGet();items.push({title,text});helpSave(items);document.getElementById('helpNewTitle').value='';document.getElementById('helpNewText').value='';renderExistingHelp();renderHelp();toast('Help saved on this device');
 }
 function deleteHelpEntry(index){const items=helpGet();if(index<0||index>=items.length)return;items.splice(index,1);helpSave(items);renderExistingHelp();renderHelp();}
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  const btn = document.getElementById('installAppBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '📱 Install App';
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('installAppBtn');
+  if (btn) {
+    btn.textContent = '✓ App Installed';
+    btn.disabled = true;
+  }
+  if (typeof toast === 'function') toast('SupraMan Math installed');
+});
+
+(function wireInstallButton(){
+  const btn = document.getElementById('installAppBtn');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      try {
+        const result = await deferredInstallPrompt.userChoice;
+        if (result.outcome === 'accepted') {
+          btn.textContent = 'Installing…';
+        }
+      } catch (e) {}
+      deferredInstallPrompt = null;
+      return;
+    }
+
+    alert(
+      "The browser has not made the install prompt available yet.\n\n" +
+      "In Chrome, open ⋮ and choose 'Install app' or 'Add to Home screen'.\n\n" +
+      "If those options are missing too, make sure the GitHub Pages site has sw.js, manifest.webmanifest, icon-192.png and icon-512.png in the same folder as index.html, then reload the site."
+    );
+  });
+})();
+
 (function wireHelp(){
   const byId=id=>document.getElementById(id);
   byId('helpBtn')?.addEventListener('click',openHelp);
